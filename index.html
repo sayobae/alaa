@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contract Cost Comparison</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Union vs. Management Salary Cost Comparison</h1>
+
+  <div id="groups-container"></div>
+  <button onclick="addGroup()">Add Group</button>
+
+  <label>Contract Length (Years):</label>
+  <input id="contract-years" type="number" value="3" />
+  <label>Last Contract Annual Raise (%):</label>
+  <input id="last-raise" type="number" value="2.5" />
+  <button onclick="calculateCosts()">Calculate</button>
+  <button onclick="exportCSV()">Export CSV</button>
+
+  <h2>Results</h2>
+  <canvas id="costChart" width="600" height="300"></canvas>
+  <table id="resultsTable"></table>
+
+  <script src="script.js"></script>
+</body>
+</html>
