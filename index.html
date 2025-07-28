@@ -10,20 +10,23 @@
 <body>
   <h1>Union vs. Management Salary Cost Comparison</h1>
 
+  <!-- Section for adding and removing groups -->
   <div id="groups-container"></div>
   <button id="addGroupButton">Add Group</button>
 
+  <!-- Inputs for contract length and last raise percentage -->
   <label>Contract Length (Years):</label>
   <input id="contract-years" type="number" value="3" />
   <label>Last Contract Annual Raise (%):</label>
   <input id="last-raise" type="number" value="2.5" />
-  <button onclick="calculateCosts()">Calculate</button>
-  <button onclick="exportCSV()">Export CSV</button>
+  <button id="calculateButton">Calculate</button>
+  <button id="exportButton">Export CSV</button>
 
   <h2>Results</h2>
   <canvas id="costChart" width="600" height="300"></canvas>
   <table id="resultsTable"></table>
 
+  <!-- Ensure the script is loaded after the DOM -->
   <script src="script.js"></script>
 </body>
 </html>
