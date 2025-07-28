@@ -3,44 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Union vs. Management Salary Cost Comparison</title>
+  <title>Contract Cost Comparator</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2em; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1em; }
-    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: center; }
-    input, textarea { width: 100%; margin-bottom: 0.5em; }
-    .group-block { margin-bottom: 2em; border: 1px solid #aaa; padding: 1em; border-radius: 5px; }
+    body { font-family: sans-serif; margin: 20px; }
+    input { margin: 4px; }
+    table, th, td { border: 1px solid #999; border-collapse: collapse; padding: 4px; }
+    th { background: #eee; }
+    .group-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
-  <h1>Union vs. Management Salary Cost Comparison</h1>
+
+  <h1>Contract Cost Comparator</h1>
+
+  <label>Contract Length (Years): <input id="contract-years" type="number" value="3" /></label>
+  <label>Raise in Last Contract (%): <input id="last-raise" type="number" value="2" /></label>
+  <button onclick="addGroup()">➕ Add Group</button>
+  <button onclick="calculateCosts()">📊 Calculate</button>
 
   <div id="groups-container"></div>
-  <button onclick="addGroup()">Add Group</button>
-
-  <label>Contract Length (Years):</label>
-  <input id="contract-years" type="number" value="3" />
-  <label>Last Contract Annual Raise (%):</label>
-  <input id="last-raise" type="number" value="2.5" />
-  <button onclick="calculateCosts()">Calculate</button>
-  <button onclick="exportCSV()">Export CSV</button>
 
   <h2>Results</h2>
-  <canvas id="costChart" width="600" height="300"></canvas>
   <table id="resultsTable"></table>
 
+  <canvas id="costChart" width="800" height="400"></canvas>
+
   <script>
-  function addGroup() {
+    function addGroup() {
       const container = document.getElementById('groups-container');
       const div = document.createElement('div');
       div.className = 'group-block';
-      const groupId = Math.random().toString(36).substr(2, 9);
       div.innerHTML = `
         <h2>Group</h2>
         <label>Group Name:</label>
         <input type="text" class="group-name" placeholder="e.g. Attorneys" />
-
+        <br/>
         <table class="step-table">
           <thead>
             <tr>
@@ -62,10 +60,9 @@
           </tbody>
         </table>
         <button onclick="addStepRow(this)">Add Step Row</button>
-
+        <br/>
         <label>Union Raise (%):</label>
         <input type="number" class="union-raise" value="3" />
-
         <label>Mgmt Raise (%):</label>
         <input type="number" class="mgmt-raise" value="2" />
       `;
@@ -100,10 +97,27 @@
       return { headcounts, unionSteps, mgmtSteps };
     }
 
+    function weightedCost(steps, headcounts) {
+      return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
+    }
+
+    function calculateProposalCosts(steps, headcounts, raise, years) {
+      const totals = [];
+      let current = [...steps];
+      for (let y = 0; y < years; y++) {
+        totals.push(weightedCost(current, headcounts));
+        current = current.map(s => s * (1 + raise / 100));
+      }
+      return totals;
+    }
+
+    function sum(array) {
+      return array.reduce((acc, val) => acc + val, 0);
+    }
+
     function calculateCosts() {
       const years = parseInt(document.getElementById('contract-years').value);
       const lastRaise = parseFloat(document.getElementById('last-raise').value);
-
       const groups = document.querySelectorAll('.group-block');
       const labels = Array.from({ length: years }, (_, i) => `Year ${i + 1}`);
 
@@ -193,28 +207,56 @@
         window.costChart.destroy();
       }
       window.costChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels,
           datasets: [
-            { label: 'Union', data: unionTotals, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
-            { label: 'Mgmt', data: mgmtTotals, backgroundColor: 'rgba(255, 99, 132, 0.6)' },
-            { label: 'Last Contract', data: lastTotals, backgroundColor: 'rgba(201, 203, 207, 0.6)' }
+            {
+              label: 'Union',
+              data: unionTotals,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'Management',
+              data: mgmtTotals,
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'Last Contract',
+              data: lastTotals,
+              borderColor: 'rgba(201, 203, 207, 1)',
+              backgroundColor: 'rgba(201, 203, 207, 0.2)',
+              fill: false,
+              tension: 0.1
+            }
           ]
         },
         options: {
           responsive: true,
           scales: {
-            y: { beginAtZero: true }
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Cost ($)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Contract Year'
+              }
+            }
           }
         }
       });
     }
-
-    window.onload = () => {
-      addGroup();
-      addGroup();
-    };
   </script>
 </body>
 </html>
