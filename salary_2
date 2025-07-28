@@ -66,7 +66,7 @@
           const unionStep = parseFloat(parts[1].trim());
           // Strip out dollar signs and commas for the management step
           const mgmtStep = parseFloat(parts[2].trim().replace(/[\$,]/g, ''));
-          
+
           if (!isNaN(headcount) && !isNaN(unionStep) && !isNaN(mgmtStep)) {
             headcounts.push(headcount);
             unionSteps.push(unionStep);
@@ -182,3 +182,6 @@
             <td>$${unionTotals[i].toFixed(2)}</td>
             <td>$${mgmtTotals[i].toFixed(2)}</td>
             <td>$
+  </body>
+  </html>
+  
