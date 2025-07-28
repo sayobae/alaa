@@ -52,22 +52,32 @@
       container.appendChild(div);
     }
 
-    function parseCSVTriples(text) {
-      const lines = text.trim().split('\n');
-      const headcounts = [], unionSteps = [], mgmtSteps = [];
-      lines.forEach(line => {
-        const parts = line.trim().split(/\s+/);
-        const h = parseFloat(parts[0]);
-        const u = parseFloat(parts[1]);
-        const m = parseFloat(parts[2].replace(/[^\\d.-]/g, ''));
-        if (!isNaN(h) && !isNaN(u) && !isNaN(m)) {
-          headcounts.push(h);
-          unionSteps.push(u);
-          mgmtSteps.push(m);
-        }
-      });
-      return { headcounts, unionSteps, mgmtSteps };
+   function parseCSVTriples(text) {
+  const lines = text.trim().split('\n'); // Trim input to remove any unnecessary newlines at the ends
+  const headcounts = [], unionSteps = [], mgmtSteps = [];
+  
+  lines.forEach((line, index) => {
+    const parts = line.split('\t').map(part => part.trim()); // Split by tab and trim spaces around each part
+    if (parts.length === 3) {
+      const headcount = parseFloat(parts[0]);
+      const unionStep = parseFloat(parts[1]);
+      // Remove any dollar signs and commas from mgmt step
+      const mgmtStep = parseFloat(parts[2].replace(/[\$,]/g, ''));
+
+      if (!isNaN(headcount) && !isNaN(unionStep) && !isNaN(mgmtStep)) {
+        headcounts.push(headcount);
+        unionSteps.push(unionStep);
+        mgmtSteps.push(mgmtStep);
+      } else {
+        console.error(`Error parsing row ${index + 1}: Invalid data format.`);
+      }
+    } else {
+      console.error(`Error parsing row ${index + 1}: Incorrect number of columns. Expected 3 columns.`);
     }
+  });
+
+  return { headcounts, unionSteps, mgmtSteps };
+}
 
     function weightedCost(steps, headcounts) {
       return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
