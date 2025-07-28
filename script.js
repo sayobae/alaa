@@ -1,12 +1,18 @@
 let groupId = 0;
 
-document.getElementById('addGroupButton').addEventListener('click', addGroup);
+// Ensure the event listeners are added after the DOM has fully loaded.
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('addGroupButton').addEventListener('click', addGroup);
+  document.getElementById('calculateButton').addEventListener('click', calculateCosts);
+  document.getElementById('exportButton').addEventListener('click', exportCSV);
+});
 
+// Add a new group when the button is clicked
 function addGroup() {
   const container = document.getElementById('groups-container');
   const div = document.createElement('div');
   div.className = 'group-block';
-  div.id = `group-${groupId++}`;  // Ensure each group has a unique ID
+  div.id = `group-${groupId++}`;
   div.innerHTML = `
     <h2>Group ${groupId}</h2>
     <label>Group Name:</label>
@@ -26,21 +32,21 @@ function addGroup() {
   container.appendChild(div);
 }
 
+// Remove a group when the remove button is clicked
 function removeGroup(groupId) {
   const groupToRemove = document.getElementById(`group-${groupId}`);
   groupToRemove.remove();
 }
 
-// Updated parseCSVTriples function to handle tab-separated CSV and strip dollar signs/commas
+// Parse the CSV-style input into headcounts and salary steps
 function parseCSVTriples(text) {
   const lines = text.split('\n');
   const headcounts = [], unionSteps = [], mgmtSteps = [];
   lines.forEach(line => {
-    const parts = line.split('\t');  // Handle tab-separated values
+    const parts = line.split('\t');
     if (parts.length === 3) {
       const headcount = parseFloat(parts[0].trim());
       const unionStep = parseFloat(parts[1].trim());
-      // Strip out dollar signs and commas for the management step
       const mgmtStep = parseFloat(parts[2].trim().replace(/[\$,]/g, ''));
       
       if (!isNaN(headcount) && !isNaN(unionStep) && !isNaN(mgmtStep)) {
@@ -53,10 +59,12 @@ function parseCSVTriples(text) {
   return { headcounts, unionSteps, mgmtSteps };
 }
 
+// Calculate the weighted cost for a given set of steps
 function weightedCost(steps, headcounts) {
   return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
 }
 
+// Calculate costs for each year, considering raises
 function calculateProposalCosts(steps, headcounts, raise, years) {
   const totals = [];
   let current = [...steps];
@@ -67,10 +75,12 @@ function calculateProposalCosts(steps, headcounts, raise, years) {
   return totals;
 }
 
+// Sum up an array of numbers
 function sum(array) {
   return array.reduce((acc, val) => acc + val, 0);
 }
 
+// Export results to CSV
 function exportCSV() {
   const table = document.getElementById('resultsTable');
   let csv = '';
@@ -85,6 +95,7 @@ function exportCSV() {
   link.click();
 }
 
+// Calculate the results for all groups
 function calculateCosts() {
   const years = parseInt(document.getElementById('contract-years').value);
   const lastRaise = parseFloat(document.getElementById('last-raise').value);
@@ -130,18 +141,4 @@ function calculateCosts() {
     labels.forEach((label, i) => {
       table.innerHTML += `
         <tr>
-          <td>${label}</td>
-          <td>$${result.union[i].toFixed(2)}</td>
-          <td>$${result.mgmt[i].toFixed(2)}</td>
-          <td>$${result.last[i].toFixed(2)}</td>
-          <td>$${(result.union[i] - result.mgmt[i]).toFixed(2)}</td>
-          <td>$${(result.union[i] - result.last[i]).toFixed(2)}</td>
-        </tr>`;
-    });
-    table.innerHTML += `
-      <tr>
-        <td><strong>Total</strong></td>
-        <td><strong>$${cumulativeUnion}</strong></td>
-        <td><strong>$${cumulativeMgmt}</strong></td>
-        <td><strong>$${cumulativeLast}</strong></td>
-        <td><strong>$${(cumulativeUnion - cumulativeMgmt).toFixed(
+          <td>${
