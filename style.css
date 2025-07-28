@@ -1,0 +1,6 @@
+body { font-family: Arial, sans-serif; margin: 2em; }
+table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+th, td { border: 1px solid #ccc; padding: 0.5em; text-align: center; }
+input, textarea, select { width: 100%; margin-bottom: 0.5em; }
+h2 { margin-top: 2em; }
+.group-block { margin-bottom: 2em; border: 1px solid #aaa; padding: 1em; border-radius: 5px; }
