@@ -31,17 +31,37 @@
   <table id="resultsTable"></table>
 
   <script>
-    function addGroup() {
+  function addGroup() {
       const container = document.getElementById('groups-container');
       const div = document.createElement('div');
       div.className = 'group-block';
+      const groupId = Math.random().toString(36).substr(2, 9);
       div.innerHTML = `
         <h2>Group</h2>
         <label>Group Name:</label>
         <input type="text" class="group-name" placeholder="e.g. Attorneys" />
 
-        <label>Paste Headcount, Union Step, Mgmt Step (separated by spaces or tabs):</label>
-        <textarea class="group-csv" rows="5" placeholder="2 50000 49000\n3 52000 50500\n5 54000 52000"></textarea>
+        <table class="step-table">
+          <thead>
+            <tr>
+              <th>Step Name</th>
+              <th>Headcount</th>
+              <th>Union Step</th>
+              <th>Mgmt Step</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody class="step-rows">
+            <tr>
+              <td><input type="text" class="step-name" /></td>
+              <td><input type="number" class="step-headcount" /></td>
+              <td><input type="number" class="step-union" /></td>
+              <td><input type="number" class="step-mgmt" /></td>
+              <td><button onclick="this.closest('tr').remove()">🗑</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button onclick="addStepRow(this)">Add Step Row</button>
 
         <label>Union Raise (%):</label>
         <input type="number" class="union-raise" value="3" />
@@ -52,63 +72,32 @@
       container.appendChild(div);
     }
 
-   function parseCSVTriples(text) {
-  const lines = text.trim().split('\n'); // Trim input to remove any unnecessary newlines at the ends
-  const headcounts = [], unionSteps = [], mgmtSteps = [];
-  
-  lines.forEach((line, index) => {
-    const parts = line.split('\t').map(part => part.trim()); // Split by tab and trim spaces around each part
-    if (parts.length === 3) {
-      const headcount = parseFloat(parts[0]);
-      const unionStep = parseFloat(parts[1]);
-      // Remove any dollar signs and commas from mgmt step
-      const mgmtStep = parseFloat(parts[2].replace(/[\$,]/g, ''));
-
-      if (!isNaN(headcount) && !isNaN(unionStep) && !isNaN(mgmtStep)) {
-        headcounts.push(headcount);
-        unionSteps.push(unionStep);
-        mgmtSteps.push(mgmtStep);
-      } else {
-        console.error(`Error parsing row ${index + 1}: Invalid data format.`);
-      }
-    } else {
-      console.error(`Error parsing row ${index + 1}: Incorrect number of columns. Expected 3 columns.`);
-    }
-  });
-
-  return { headcounts, unionSteps, mgmtSteps };
-}
-
-    function weightedCost(steps, headcounts) {
-      return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
+    function addStepRow(button) {
+      const tbody = button.parentElement.querySelector('.step-rows');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><input type="text" class="step-name" /></td>
+        <td><input type="number" class="step-headcount" /></td>
+        <td><input type="number" class="step-union" /></td>
+        <td><input type="number" class="step-mgmt" /></td>
+        <td><button onclick="this.closest('tr').remove()">🗑</button></td>`;
+      tbody.appendChild(row);
     }
 
-    function calculateProposalCosts(steps, headcounts, raise, years) {
-      const totals = [];
-      let current = [...steps];
-      for (let y = 0; y < years; y++) {
-        totals.push(weightedCost(current, headcounts));
-        current = current.map(s => s * (1 + raise / 100));
-      }
-      return totals;
-    }
-
-    function sum(array) {
-      return array.reduce((acc, val) => acc + val, 0);
-    }
-
-    function exportCSV() {
-      const table = document.getElementById('resultsTable');
-      let csv = '';
-      for (let row of table.rows) {
-        const cells = Array.from(row.cells).map(cell => `"${cell.textContent.trim()}"`);
-        csv += cells.join(',') + '\n';
-      }
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'contract_costs.csv';
-      link.click();
+    function parseStepsFromTable(group) {
+      const headcounts = [], unionSteps = [], mgmtSteps = [];
+      const rows = group.querySelectorAll('.step-rows tr');
+      rows.forEach(row => {
+        const hc = parseFloat(row.querySelector('.step-headcount').value);
+        const u = parseFloat(row.querySelector('.step-union').value);
+        const m = parseFloat(row.querySelector('.step-mgmt').value);
+        if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
+          headcounts.push(hc);
+          unionSteps.push(u);
+          mgmtSteps.push(m);
+        }
+      });
+      return { headcounts, unionSteps, mgmtSteps };
     }
 
     function calculateCosts() {
@@ -127,8 +116,7 @@
         const name = group.querySelector('.group-name').value || 'Unnamed Group';
         const raiseUnion = parseFloat(group.querySelector('.union-raise').value);
         const raiseMgmt = parseFloat(group.querySelector('.mgmt-raise').value);
-        const csvInput = group.querySelector('.group-csv').value;
-        const { headcounts, unionSteps, mgmtSteps } = parseCSVTriples(csvInput);
+        const { headcounts, unionSteps, mgmtSteps } = parseStepsFromTable(group);
 
         const union = calculateProposalCosts(unionSteps, headcounts, raiseUnion, years);
         const mgmt = calculateProposalCosts(mgmtSteps, headcounts, raiseMgmt, years);
