@@ -119,52 +119,107 @@
       return `hsl(${hue}, 70%, 50%)`;
     }
 
-    function calculateCosts() {
-      const years = parseInt(document.getElementById('contract-years').value);
-      const groups = document.querySelectorAll('.group-block');
-      const labels = Array.from({ length: years }, (_, i) => `Year ${i + 1}`);
+   function calculateCosts() {
+  const years = parseInt(document.getElementById('contract-years').value);
+  const groups = document.querySelectorAll('.group-block');
+  const labels = Array.from({ length: years }, (_, i) => `Year ${i + 1}`);
 
-      let unionTotals = Array(years).fill(0);
-      let mgmtTotals = Array(years).fill(0);
-      let lastTotals = Array(years).fill(0);
-      let datasets = [];
-      let table = document.getElementById('resultsTable');
-      table.innerHTML = '';
+  let unionTotals = Array(years).fill(0);
+  let mgmtTotals = Array(years).fill(0);
+  let lastTotals = Array(years).fill(0);
+  let datasets = [];
+  let table = document.getElementById('resultsTable');
+  table.innerHTML = '';
 
-      groups.forEach((group, groupIndex) => {
-        const name = group.querySelector('.group-name').value || `Group ${groupIndex + 1}`;
-        const unionRaises = group.querySelector('.union-raises').value.split(',').map(Number);
-        const mgmtRaises = group.querySelector('.mgmt-raises').value.split(',').map(Number);
-        const { headcounts, unionSteps, mgmtSteps } = parseStepData(group.querySelector('.step-data').value);
+  groups.forEach((group, groupIndex) => {
+    const name = group.querySelector('.group-name').value || `Group ${groupIndex + 1}`;
+    const unionRaises = group.querySelector('.union-raises').value.split(',').map(Number);
+    const mgmtRaises = group.querySelector('.mgmt-raises').value.split(',').map(Number);
+    const { headcounts, unionSteps, mgmtSteps } = parseStepData(group.querySelector('.step-data').value);
 
-        const union = calculateProposalCosts([...unionSteps], headcounts, unionRaises, years);
-        const mgmt = calculateProposalCosts([...mgmtSteps], headcounts, mgmtRaises, years);
-        const last = calculateProposalCosts([...mgmtSteps], headcounts, Array(years).fill(mgmtRaises[0]), years);
+    const union = calculateProposalCosts([...unionSteps], headcounts, unionRaises, years);
+    const mgmt = calculateProposalCosts([...mgmtSteps], headcounts, mgmtRaises, years);
+    const last = calculateProposalCosts([...mgmtSteps], headcounts, Array(years).fill(mgmtRaises[0]), years);
 
-        unionTotals = unionTotals.map((v, i) => v + union[i]);
-        mgmtTotals = mgmtTotals.map((v, i) => v + mgmt[i]);
-        lastTotals = lastTotals.map((v, i) => v + last[i]);
+    unionTotals = unionTotals.map((v, i) => v + union[i]);
+    mgmtTotals = mgmtTotals.map((v, i) => v + mgmt[i]);
+    lastTotals = lastTotals.map((v, i) => v + last[i]);
 
-        table.innerHTML += `<tr><th colspan="6">${name}</th></tr>`;
-        table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
-        labels.forEach((label, i) => {
-          table.innerHTML += `<tr><td>${label}</td><td>$${union[i].toFixed(2)}</td><td>$${mgmt[i].toFixed(2)}</td><td>$${last[i].toFixed(2)}</td><td>$${(union[i]-mgmt[i]).toFixed(2)}</td><td>$${(union[i]-last[i]).toFixed(2)}</td></tr>`;
-        });
+    // Update table
+    table.innerHTML += `<tr><th colspan="6">${name}</th></tr>`;
+    table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
+    labels.forEach((label, i) => {
+      table.innerHTML += `<tr><td>${label}</td><td>$${union[i].toFixed(2)}</td><td>$${mgmt[i].toFixed(2)}</td><td>$${last[i].toFixed(2)}</td><td>$${(union[i]-mgmt[i]).toFixed(2)}</td><td>$${(union[i]-last[i]).toFixed(2)}</td></tr>`;
+    });
 
-        const unionStepLines = computeStepProgression(unionSteps, headcounts, unionRaises, years, 'Union');
-        const mgmtStepLines = computeStepProgression(mgmtSteps, headcounts, mgmtRaises, years, 'Mgmt');
+    // Generate step progressions
+    const unionStepLines = computeStepProgression(unionSteps, headcounts, unionRaises, years, 'Union');
+    const mgmtStepLines = computeStepProgression(mgmtSteps, headcounts, mgmtRaises, years, 'Mgmt');
 
-        [...unionStepLines, ...mgmtStepLines].forEach(line => {
-          datasets.push({
-            label: `${name} - ${line.label}`,
-            data: line.data,
-            borderColor: getRandomColor(),
-            borderDash: [4, 2],
-            fill: false,
-            tension: 0.2
-          });
-        });
+    // Add the lines to the datasets array
+    [...unionStepLines, ...mgmtStepLines].forEach(line => {
+      datasets.push({
+        label: `${name} - ${line.label}`,
+        data: line.data,
+        borderColor: getRandomColor(),
+        borderDash: [4, 2],
+        fill: false,
+        tension: 0.2
       });
+    });
+  });
+
+  // Add the total lines to datasets
+  datasets.unshift(
+    {
+      label: 'Union Total',
+      data: unionTotals,
+      borderColor: 'rgba(75, 192, 192, 1)',
+      fill: false,
+      tension: 0.1
+    },
+    {
+      label: 'Management Total',
+      data: mgmtTotals,
+      borderColor: 'rgba(255, 99, 132, 1)',
+      fill: false,
+      tension: 0.1
+    },
+    {
+      label: 'Last Contract Total',
+      data: lastTotals,
+      borderColor: 'rgba(201, 203, 207, 1)',
+      fill: false,
+      tension: 0.1
+    }
+  );
+
+  // Destroy the previous chart if it exists
+  if (window.costChart) {
+    window.costChart.destroy();
+  }
+
+  // Initialize the new chart
+  const ctx = document.getElementById('costChart').getContext('2d');
+  window.costChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: { legend: { display: true } },
+      scales: {
+        y: { 
+          beginAtZero: true, 
+          title: { display: true, text: 'Cost ($)' }
+        },
+        x: { 
+          title: { display: true, text: 'Contract Year' }
+        }
+      }
+    }
+  });
+}
 
       datasets.unshift(
         {
