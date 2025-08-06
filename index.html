@@ -7,13 +7,14 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; margin: 20px; }
-    input { margin: 4px; }
+    input, textarea { margin: 4px; padding: 4px; }
     table, th, td { border: 1px solid #999; border-collapse: collapse; padding: 4px; }
     th { background: #eee; }
     .group-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
+
   <h1>Contract Cost Comparator</h1>
 
   <label>Contract Length (Years): <input id="contract-years" type="number" value="3" /></label>
@@ -36,47 +37,18 @@
   <canvas id="costChart" width="800" height="400"></canvas>
 
   <script>
+    function cleanNumber(str) {
+      return parseFloat(str.replace(/[$,]/g, ''));
+    }
+
     function addGroupFromPaste() {
       const text = document.getElementById('pasted-data').value.trim();
       if (!text) return;
 
       const rows = text.split('\n').map(r => r.split(/\t|,/).map(cell => cell.trim()));
-function cleanNumber(str) {
-  return parseFloat(str.replace(/[$,]/g, ''));
-}
+      const validRows = rows.filter(r => r.length >= 4 && !isNaN(cleanNumber(r[1])));
 
-const validRows = rows.filter(r => r.length >= 4 && !isNaN(cleanNumber(r[1])));
-
-const groupName = document.getElementById('group-name').value || "Unnamed Group";
-const unionRaise = parseFloat(document.getElementById('union-raise').value);
-const mgmtRaise = parseFloat(document.getElementById('mgmt-raise').value);
-
-const container = document.getElementById('groups-container');
-const div = document.createElement('div');
-div.className = 'group-block';
-div.innerHTML = `<h2>${groupName}</h2>`;
-div.dataset.groupName = groupName;
-div.dataset.unionRaise = unionRaise;
-div.dataset.mgmtRaise = mgmtRaise;
-
-const stepTable = document.createElement('table');
-stepTable.className = 'step-table';
-stepTable.innerHTML = `
-  <thead>
-    <tr><th>Step</th><th>Headcount</th><th>Union Step</th><th>Mgmt Step</th></tr>
-  </thead>
-  <tbody class="step-rows">
-    ${validRows.map(row => `
-      <tr>
-        <td class="step-name">${row[0]}</td>
-        <td class="step-headcount">${cleanNumber(row[1])}</td>
-        <td class="step-union">${cleanNumber(row[2])}</td>
-        <td class="step-mgmt">${cleanNumber(row[3])}</td>
-      </tr>`).join('')}
-  </tbody>
-`;
-div.appendChild(stepTable);
-container.appendChild(div);
+      if (validRows.length === 0) return;
 
       const groupName = document.getElementById('group-name').value || "Unnamed Group";
       const unionRaise = parseFloat(document.getElementById('union-raise').value);
@@ -85,10 +57,9 @@ container.appendChild(div);
       const container = document.getElementById('groups-container');
       const div = document.createElement('div');
       div.className = 'group-block';
-      div.innerHTML = `<h2>${groupName}</h2>`;
-      div.dataset.groupName = groupName;
-      div.dataset.unionRaise = unionRaise;
-      div.dataset.mgmtRaise = mgmtRaise;
+      div.setAttribute('data-group-name', groupName);
+      div.setAttribute('data-union-raise', unionRaise);
+      div.setAttribute('data-mgmt-raise', mgmtRaise);
 
       const stepTable = document.createElement('table');
       stepTable.className = 'step-table';
@@ -100,37 +71,35 @@ container.appendChild(div);
           ${validRows.map(row => `
             <tr>
               <td class="step-name">${row[0]}</td>
-              <td class="step-headcount">${parseFloat(row[1])}</td>
-              <td class="step-union">${parseFloat(row[2])}</td>
-              <td class="step-mgmt">${parseFloat(row[3])}</td>
+              <td class="step-headcount">${cleanNumber(row[1])}</td>
+              <td class="step-union">${cleanNumber(row[2])}</td>
+              <td class="step-mgmt">${cleanNumber(row[3])}</td>
             </tr>`).join('')}
         </tbody>
       `;
       div.appendChild(stepTable);
       container.appendChild(div);
 
-      // clear inputs
       document.getElementById('pasted-data').value = '';
       document.getElementById('group-name').value = '';
     }
 
     function parseStepsFromDisplayTable(group) {
-  const headcounts = [], unionSteps = [], mgmtSteps = [];
-  const rows = group.querySelectorAll('.step-rows tr');
-  rows.forEach(row => {
-    const clean = str => parseFloat(str.replace(/[$,]/g, ''));
-    const hc = clean(row.querySelector('.step-headcount').textContent);
-    const u = clean(row.querySelector('.step-union').textContent);
-    const m = clean(row.querySelector('.step-mgmt').textContent);
-    if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
-      headcounts.push(hc);
-      unionSteps.push(u);
-      mgmtSteps.push(m);
+      const headcounts = [], unionSteps = [], mgmtSteps = [];
+      const rows = group.querySelectorAll('.step-rows tr');
+      rows.forEach(row => {
+        const clean = str => parseFloat(str.replace(/[$,]/g, ''));
+        const hc = clean(row.querySelector('.step-headcount')?.textContent || "");
+        const u = clean(row.querySelector('.step-union')?.textContent || "");
+        const m = clean(row.querySelector('.step-mgmt')?.textContent || "");
+        if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
+          headcounts.push(hc);
+          unionSteps.push(u);
+          mgmtSteps.push(m);
+        }
+      });
+      return { headcounts, unionSteps, mgmtSteps };
     }
-  });
-  return { headcounts, unionSteps, mgmtSteps };
-}
-
 
     function weightedCost(steps, headcounts) {
       return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
