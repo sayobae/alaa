@@ -7,50 +7,315 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; margin: 20px; }
-    input, textarea { margin: 4px; }
+    input, textarea { margin: 4px; padding: 4px; }
     table, th, td { border: 1px solid #999; border-collapse: collapse; padding: 4px; }
     th { background: #eee; }
-    .group-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
+    .group-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; position: relative; }
+    .remove-btn { position: absolute; top: 10px; right: 10px; background: #f44336; color: white; border: none; cursor: pointer; padding: 4px 8px; }
+    .remove-btn:hover { background: #d32f2f; }
   </style>
 </head>
 <body>
+
   <h1>Contract Cost Comparator</h1>
 
   <label>Contract Length (Years): <input id="contract-years" type="number" value="3" /></label>
-  <button onclick="addGroup()">➕ Add Group</button>
-  <button onclick="calculateCosts()" id="calculate-btn">📊 Calculate</button>
-  <button id="export-btn">📥 Export CSV</button>
+  <label>Raise in Last Contract (%): <input id="last-raise" type="number" value="2" /></label>
+  <br><br>
+
+  <label>Paste Group Data from Spreadsheet (Columns: Step, Headcount, Union Step, Mgmt Step):</label><br>
+  <textarea id="pasted-data" rows="10" cols="80" placeholder="Paste from spreadsheet here..."></textarea><br>
+  <label>Group Name: <input id="group-name" type="text" placeholder="e.g. Attorneys"></label><br>
+  <label>Union Raise (%): <input id="union-raise" type="number" value="3"></label>
+  <label>Mgmt Raise (%): <input id="mgmt-raise" type="number" value="2"></label>
+  <br>
+  <button id="add-group-btn">➕ Add Group from Pasted Data</button>
+  <button id="calculate-btn">📊 Calculate</button>
+  <button onclick="exportTableToCSV()">📥 Export CSV</button>
 
   <div id="groups-container"></div>
 
   <h2>Results</h2>
   <table id="resultsTable"></table>
-
   <canvas id="costChart" width="800" height="400"></canvas>
 
   <script>
-    function addGroup() {
+    function cleanNumber(str) {
+      return parseFloat(str.replace(/[^0-9.-]+/g, ''));
+    }
+
+    function exportTableToCSV() {
+      const table = document.getElementById("resultsTable");
+      let csv = [];
+      for (let row of table.rows) {
+        let rowData = [];
+        for (let cell of row.cells) {
+          rowData.push('"' + cell.innerText.replace(/"/g, '""') + '"');
+        }
+        csv.push(rowData.join(","));
+      }
+      const csvBlob = new Blob([csv.join("\n")], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(csvBlob);
+      link.download = 'contract_cost_comparison.csv';
+      link.click();
+    }
+
+    function addGroupFromPaste() {
+      const text = document.getElementById('pasted-data').value.trim();
+      if (!text) {
+        alert("Please paste group data from spreadsheet.");
+        return;
+      }
+
+      const rows = text.split('\n').map(row => row.split('\t').map(cell => cell.trim()));
+      const validRows = rows.filter(r => r.length >= 4 && !isNaN(cleanNumber(r[1])));
+      if (validRows.length === 0) {
+        alert("No valid rows detected. Please check formatting and values.");
+        return;
+      }
+
+      const groupName = document.getElementById('group-name').value || "Unnamed Group";
+      const unionRaise = parseFloat(document.getElementById('union-raise').value);
+      const mgmtRaise = parseFloat(document.getElementById('mgmt-raise').value);
+
       const container = document.getElementById('groups-container');
       const div = document.createElement('div');
       div.className = 'group-block';
-      div.innerHTML = `
-        <button onclick="this.closest('.group-block').remove()">🗑 Delete Group</button>
-        <h2>Group</h2>
-        <label>Group Name:</label>
-        <input type="text" class="group-name" placeholder="e.g. Attorneys" />
-        <br/>
-        <label>Union Raises per Year (% comma-separated):</label>
-        <input type="text" class="union-raises" value="3,2,2"/>
-        <label>Mgmt Raises per Year (% comma-separated):</label>
-        <input type="text" class="mgmt-raises" value="2,2,2"/>
-        <br/>
-        <label>Paste Step Data (Tab-Separated: Step, Headcount, Union Step, Mgmt Step):</label><br/>
-        <textarea rows="6" cols="60" class="step-data"></textarea>
+      div.setAttribute('data-group-name', groupName);
+      div.setAttribute('data-union-raise', unionRaise);
+      div.setAttribute('data-mgmt-raise', mgmtRaise);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.textContent = '❌ Remove Group';
+      removeBtn.onclick = () => {
+        container.removeChild(div);
+        calculateCosts();
+      };
+      div.appendChild(removeBtn);
+
+      const stepTable = document.createElement('table');
+      stepTable.className = 'step-table';
+      stepTable.innerHTML = `
+        <thead>
+          <tr><th>Step</th><th>Headcount</th><th>Union Step</th><th>Mgmt Step</th></tr>
+        </thead>
+        <tbody class="step-rows">
+          ${validRows.map(row => `
+            <tr>
+              <td class="step-name">${row[0]}</td>
+              <td class="step-headcount">${cleanNumber(row[1])}</td>
+              <td class="step-union">${cleanNumber(row[2])}</td>
+              <td class="step-mgmt">${cleanNumber(row[3])}</td>
+            </tr>`).join('')}
+        </tbody>
       `;
+      div.appendChild(stepTable);
       container.appendChild(div);
+
+      document.getElementById('pasted-data').value = '';
+      document.getElementById('group-name').value = '';
+
+      calculateCosts();
     }
 
-    // Your other functions like calculateCosts() and chart handling should be here...
+    function parseStepsFromDisplayTable(group) {
+      const headcounts = [], unionSteps = [], mgmtSteps = [];
+      const rows = group.querySelectorAll('.step-rows tr');
+      rows.forEach(row => {
+        const hc = cleanNumber(row.querySelector('.step-headcount')?.textContent || "");
+        const u = cleanNumber(row.querySelector('.step-union')?.textContent || "");
+        const m = cleanNumber(row.querySelector('.step-mgmt')?.textContent || "");
+        if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
+          headcounts.push(hc);
+          unionSteps.push(u);
+          mgmtSteps.push(m);
+        }
+      });
+      return { headcounts, unionSteps, mgmtSteps };
+    }
+
+    function calculateProposalCostsWithStepProgression(steps, headcounts, raisePercent, years) {
+      const totals = Array(years).fill(0);
+      const numSteps = steps.length;
+
+      const currentStepIndexes = headcounts.map((_, i) => i);
+      const currentStepValues = [...steps];
+
+      for (let year = 0; year < years; year++) {
+        let totalCost = 0;
+
+        currentStepIndexes.forEach((stepIndex, i) => {
+          const cappedIndex = Math.min(stepIndex, numSteps - 1);
+          const stepValue = currentStepValues[cappedIndex];
+          totalCost += stepValue * headcounts[i];
+        });
+
+        totals[year] = totalCost;
+
+        for (let i = 0; i < currentStepValues.length; i++) {
+          currentStepValues[i] *= (1 + raisePercent / 100);
+        }
+
+        for (let i = 0; i < currentStepIndexes.length; i++) {
+          if (currentStepIndexes[i] < numSteps - 1) {
+            currentStepIndexes[i]++;
+          }
+        }
+      }
+
+      return totals;
+    }
+
+    function sum(array) {
+      return array.reduce((acc, val) => acc + val, 0);
+    }
+
+    function calculateCosts() {
+      const years = parseInt(document.getElementById('contract-years').value);
+      const lastRaise = parseFloat(document.getElementById('last-raise').value);
+      const groups = document.querySelectorAll('.group-block');
+      const labels = Array.from({ length: years }, (_, i) => `Year ${i + 1}`);
+
+      let unionTotals = Array(years).fill(0);
+      let mgmtTotals = Array(years).fill(0);
+      let lastTotals = Array(years).fill(0);
+      let groupResults = [];
+      let totalHeadcount = 0;
+
+      const table = document.getElementById('resultsTable');
+      table.innerHTML = '';
+
+      groups.forEach(group => {
+        const name = group.dataset.groupName;
+        const raiseUnion = parseFloat(group.dataset.unionRaise);
+        const raiseMgmt = parseFloat(group.dataset.mgmtRaise);
+        const { headcounts, unionSteps, mgmtSteps } = parseStepsFromDisplayTable(group);
+        const groupHeadcount = sum(headcounts);
+        totalHeadcount += groupHeadcount;
+
+        const union = calculateProposalCostsWithStepProgression(unionSteps, headcounts, raiseUnion, years);
+        const mgmt = calculateProposalCostsWithStepProgression(mgmtSteps, headcounts, raiseMgmt, years);
+        const last = calculateProposalCostsWithStepProgression(mgmtSteps, headcounts, lastRaise, years);
+
+        unionTotals = unionTotals.map((v, i) => v + union[i]);
+        mgmtTotals = mgmtTotals.map((v, i) => v + mgmt[i]);
+        lastTotals = lastTotals.map((v, i) => v + last[i]);
+
+        const totalU = sum(union).toFixed(2);
+        const totalM = sum(mgmt).toFixed(2);
+        const totalL = sum(last).toFixed(2);
+
+        table.innerHTML += `<tr><th colspan="6">${name} (Total Headcount: ${groupHeadcount})</th></tr>`;
+        table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last Contract</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
+        labels.forEach((label, i) => {
+          table.innerHTML += `
+            <tr>
+              <td>${label}</td>
+              <td>$${union[i].toFixed(2)}</td>
+              <td>$${mgmt[i].toFixed(2)}</td>
+              <td>$${last[i].toFixed(2)}</td>
+              <td>$${(union[i] - mgmt[i]).toFixed(2)}</td>
+              <td>$${(union[i] - last[i]).toFixed(2)}</td>
+            </tr>`;
+        });
+        table.innerHTML += `
+          <tr>
+            <td><strong>Total</strong></td>
+            <td><strong>$${totalU}</strong></td>
+            <td><strong>$${totalM}</strong></td>
+            <td><strong>$${totalL}</strong></td>
+            <td><strong>$${(totalU - totalM).toFixed(2)}</strong></td>
+            <td><strong>$${(totalU - totalL).toFixed(2)}</strong></td>
+          </tr>`;
+      });
+
+      const totalUnion = sum(unionTotals).toFixed(2);
+      const totalMgmt = sum(mgmtTotals).toFixed(2);
+      const totalLast = sum(lastTotals).toFixed(2);
+
+      table.innerHTML += `<tr><th colspan="6">Total Across All Groups (Headcount: ${totalHeadcount})</th></tr>`;
+      table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last Contract</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
+      labels.forEach((label, i) => {
+        table.innerHTML += `
+          <tr>
+            <td>${label}</td>
+            <td>$${unionTotals[i].toFixed(2)}</td>
+            <td>$${mgmtTotals[i].toFixed(2)}</td>
+            <td>$${lastTotals[i].toFixed(2)}</td>
+            <td>$${(unionTotals[i] - mgmtTotals[i]).toFixed(2)}</td>
+            <td>$${(unionTotals[i] - lastTotals[i]).toFixed(2)}</td>
+          </tr>`;
+      });
+      table.innerHTML += `
+        <tr>
+          <td><strong>Total</strong></td>
+          <td><strong>$${totalUnion}</strong></td>
+          <td><strong>$${totalMgmt}</strong></td>
+          <td><strong>$${totalLast}</strong></td>
+          <td><strong>$${(totalUnion - totalMgmt).toFixed(2)}</strong></td>
+          <td><strong>$${(totalUnion - totalLast).toFixed(2)}</strong></td>
+        </tr>`;
+
+      const ctx = document.getElementById('costChart').getContext('2d');
+      if (window.costChart && typeof window.costChart.destroy === 'function') {
+        window.costChart.destroy();
+      }
+      window.costChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Union',
+              data: unionTotals,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'Management',
+              data: mgmtTotals,
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'Last Contract',
+              data: lastTotals,
+              borderColor: 'rgba(201, 203, 207, 1)',
+              backgroundColor: 'rgba(201, 203, 207, 0.2)',
+              fill: false,
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Cost ($)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Contract Year'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    document.getElementById('add-group-btn').addEventListener('click', addGroupFromPaste);
+    document.getElementById('calculate-btn').addEventListener('click', calculateCosts);
   </script>
 </body>
 </html>
