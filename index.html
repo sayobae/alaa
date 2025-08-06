@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Contract Cost Comparator</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     input, textarea { margin: 4px; padding: 4px; }
@@ -36,7 +37,6 @@
   <table id="resultsTable"></table>
   <canvas id="costChart" width="800" height="400"></canvas>
 
-  <script>
     function cleanNumber(str) {
       return parseFloat(str.replace(/[$,]/g, ''));
     }
