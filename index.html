@@ -232,6 +232,46 @@
         <td><strong>$${(totalUnion - totalLast).toFixed(2)}</strong></td>
       </tr>`;
 
+    <!-- Snippet to insert into existing HTML inside the calculateCosts function -->
+
+// Create detailed breakdown table
+const detailedTable = document.createElement('table');
+detailedTable.innerHTML = '<tr><th>Group</th><th>Step</th>' +
+  labels.map((label) => `<th>Union ${label}</th><th>Mgmt ${label}</th>`).join('') +
+  '<th>Total Union</th><th>Total Mgmt</th><th>Difference</th></tr>';
+
+groupResults.forEach((result, gIndex) => {
+  const { headcounts, unionSteps, mgmtSteps } = parseStepsFromDisplayTable(groups[gIndex]);
+
+  headcounts.forEach((hc, i) => {
+    const unionRaiseArray = parseRaiseString(groups[gIndex].dataset.unionRaise, years);
+    const mgmtRaiseArray = parseRaiseString(groups[gIndex].dataset.mgmtRaise, years);
+
+    const unionProgression = calculateProposalCostsWithStepProgression([unionSteps[i]], [hc], unionRaiseArray, years);
+    const mgmtProgression = calculateProposalCostsWithStepProgression([mgmtSteps[i]], [hc], mgmtRaiseArray, years);
+
+    const row = [`<td>${result.name}</td>`, `<td>Step ${i + 1}</td>`];
+    let totalUnion = 0, totalMgmt = 0;
+
+    for (let y = 0; y < years; y++) {
+      row.push(`<td>$${unionProgression[y].toFixed(2)}</td>`);
+      row.push(`<td>$${mgmtProgression[y].toFixed(2)}</td>`);
+      totalUnion += unionProgression[y];
+      totalMgmt += mgmtProgression[y];
+    }
+
+    row.push(`<td><strong>$${totalUnion.toFixed(2)}</strong></td>`);
+    row.push(`<td><strong>$${totalMgmt.toFixed(2)}</strong></td>`);
+    row.push(`<td><strong>$${(totalUnion - totalMgmt).toFixed(2)}</strong></td>`);
+    detailedTable.innerHTML += `<tr>${row.join('')}</tr>`;
+  });
+});
+
+document.getElementById('resultsTable').appendChild(document.createElement('br'));
+document.getElementById('resultsTable').appendChild(document.createTextNode('Detailed Breakdown by Step:'));
+document.getElementById('resultsTable').appendChild(detailedTable);
+
+
     const ctx = document.getElementById('costChart').getContext('2d');
     if (window.costChart && typeof window.costChart.destroy === 'function') {
       window.costChart.destroy();
