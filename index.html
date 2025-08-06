@@ -313,9 +313,11 @@
         }
       });
     }
+window.onload = () => {
+  document.getElementById('add-group-btn').addEventListener('click', addGroupFromPaste);
+  document.getElementById('calculate-btn').addEventListener('click', calculateCosts);
+};
 
-    document.getElementById('add-group-btn').addEventListener('click', addGroupFromPaste);
-    document.getElementById('calculate-btn').addEventListener('click', calculateCosts);
   </script>
 </body>
 </html>
