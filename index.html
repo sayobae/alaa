@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Contract Cost Comparator</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script defer>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     input, textarea { margin: 4px; padding: 4px; }
@@ -28,15 +27,17 @@
   <label>Union Raise (%): <input id="union-raise" type="number" value="3"></label>
   <label>Mgmt Raise (%): <input id="mgmt-raise" type="number" value="2"></label>
   <br>
-  <button onclick="addGroupFromPaste()">➕ Add Group from Pasted Data</button>
-  <button onclick="calculateCosts()">📊 Calculate</button>
+  <button id="add-group-btn">➕ Add Group from Pasted Data</button>
+  <button id="calculate-btn">📊 Calculate</button>
 
   <div id="groups-container"></div>
 
   <h2>Results</h2>
   <table id="resultsTable"></table>
   <canvas id="costChart" width="800" height="400"></canvas>
-<script>
+
+  <!-- ✅ YOUR SCRIPT GOES HERE, after page content -->
+  <script>
     function cleanNumber(str) {
       return parseFloat(str.replace(/[$,]/g, ''));
     }
@@ -261,6 +262,10 @@
         }
       });
     }
+
+    // Attach event listeners AFTER script is defined
+    document.getElementById('add-group-btn').addEventListener('click', addGroupFromPaste);
+    document.getElementById('calculate-btn').addEventListener('click', calculateCosts);
   </script>
 </body>
 </html>
