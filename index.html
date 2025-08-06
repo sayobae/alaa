@@ -38,15 +38,19 @@
 
   <!-- ✅ YOUR SCRIPT GOES HERE, after page content -->
   <script>
-    function cleanNumber(str) {
-      return parseFloat(str.replace(/[$,]/g, ''));
-    }
+   function cleanNumber(str) {
+  return parseFloat(str.replace(/[^0-9.-]+/g, '')); // removes $ and commas safely
+}
+
 
     function addGroupFromPaste() {
       const text = document.getElementById('pasted-data').value.trim();
       if (!text) return;
 
-      const rows = text.split('\n').map(r => r.split(/\t|,/).map(cell => cell.trim()));
+const rows = text.split('\n').map(row => {
+  const cells = row.split('\t'); // ONLY split on tabs
+  return cells.map(cell => cell.trim());
+});
       const validRows = rows.filter(r => r.length >= 4 && !isNaN(cleanNumber(r[1])));
 
       if (validRows.length === 0) return;
