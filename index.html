@@ -115,20 +115,22 @@ container.appendChild(div);
     }
 
     function parseStepsFromDisplayTable(group) {
-      const headcounts = [], unionSteps = [], mgmtSteps = [];
-      const rows = group.querySelectorAll('.step-rows tr');
-      rows.forEach(row => {
-        const hc = parseFloat(row.querySelector('.step-headcount').textContent);
-        const u = parseFloat(row.querySelector('.step-union').textContent);
-        const m = parseFloat(row.querySelector('.step-mgmt').textContent);
-        if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
-          headcounts.push(hc);
-          unionSteps.push(u);
-          mgmtSteps.push(m);
-        }
-      });
-      return { headcounts, unionSteps, mgmtSteps };
+  const headcounts = [], unionSteps = [], mgmtSteps = [];
+  const rows = group.querySelectorAll('.step-rows tr');
+  rows.forEach(row => {
+    const clean = str => parseFloat(str.replace(/[$,]/g, ''));
+    const hc = clean(row.querySelector('.step-headcount').textContent);
+    const u = clean(row.querySelector('.step-union').textContent);
+    const m = clean(row.querySelector('.step-mgmt').textContent);
+    if (!isNaN(hc) && !isNaN(u) && !isNaN(m)) {
+      headcounts.push(hc);
+      unionSteps.push(u);
+      mgmtSteps.push(m);
     }
+  });
+  return { headcounts, unionSteps, mgmtSteps };
+}
+
 
     function weightedCost(steps, headcounts) {
       return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
