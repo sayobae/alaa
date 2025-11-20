@@ -42,13 +42,16 @@ function removeGroup(groupId) {
 function parseCSVTriples(text) {
   const lines = text.split('\n');
   const headcounts = [], unionSteps = [], mgmtSteps = [];
+
   lines.forEach(line => {
     const parts = line.split('\t');
     if (parts.length === 3) {
       const headcount = parseFloat(parts[0].trim());
-      const unionStep = parseFloat(parts[1].trim());
-      const mgmtStep = parseFloat(parts[2].trim().replace(/[\$,]/g, ''));
-      
+
+      // ✅ Clean $ and commas from BOTH union and mgmt steps
+      const unionStep = parseFloat(parts[1].trim().replace(/[\$,]/g, ''));
+      const mgmtStep  = parseFloat(parts[2].trim().replace(/[\$,]/g, ''));
+
       if (!isNaN(headcount) && !isNaN(unionStep) && !isNaN(mgmtStep)) {
         headcounts.push(headcount);
         unionSteps.push(unionStep);
@@ -56,6 +59,7 @@ function parseCSVTriples(text) {
       }
     }
   });
+
   return { headcounts, unionSteps, mgmtSteps };
 }
 
@@ -138,7 +142,18 @@ function calculateCosts() {
 
     table.innerHTML += `<tr><th colspan="6">${result.groupName}</th></tr>`;
     table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last Contract</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
+    
     labels.forEach((label, i) => {
       table.innerHTML += `
         <tr>
-          <td>${
+          <td>${label}</td>
+          <td>${result.union[i].toFixed(2)}</td>
+          <td>${result.mgmt[i].toFixed(2)}</td>
+          <td>${result.last[i].toFixed(2)}</td>
+          <td>${(result.union[i] - result.mgmt[i]).toFixed(2)}</td>
+          <td>${(result.union[i] - result.last[i]).toFixed(2)}</td>
+        </tr>`;
+    });
+
+    ta
+
