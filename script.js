@@ -12,30 +12,35 @@ function addGroup() {
   const container = document.getElementById('groups-container');
   const div = document.createElement('div');
   div.className = 'group-block';
-  div.id = `group-${groupId++}`;
+  div.id = `group-${groupId}`;
   div.innerHTML = `
-    <h2>Group ${groupId}</h2>
+    <h2>Group ${groupId + 1}</h2>
+
+    <button type="button" class="delete-group-btn" onclick="removeGroup(${groupId})">
+      ❌ Delete Group
+    </button>
+
     <label>Group Name:</label>
     <input type="text" class="group-name" placeholder="e.g. Attorneys" />
 
-    <label>Paste Headcount, Union Step, Mgmt Step (CSV-style, 3 columns, Tab-separated):</label>
-    <textarea class="group-csv" rows="5" placeholder="0\t83500\t$80,659.71\n0\t85500\t$82,782.34\n3\t88666\t$84,904.96"></textarea>
+    <label>Paste Headcount, Union Step, Mgmt Step (tab-separated, 3 columns):</label>
+    <textarea class="group-csv" rows="5" placeholder="0\t83500\t$80,659.71"></textarea>
 
     <label>Union Raise (%):</label>
     <input type="number" class="union-raise" value="3" />
 
     <label>Mgmt Raise (%):</label>
     <input type="number" class="mgmt-raise" value="2" />
-
-    <button type="button" onclick="removeGroup(${groupId - 1})">Remove Group</button>
   `;
   container.appendChild(div);
+
+  groupId++;
 }
 
 // Remove a group when the remove button is clicked
-function removeGroup(groupId) {
-  const groupToRemove = document.getElementById(`group-${groupId}`);
-  groupToRemove.remove();
+function removeGroup(id) {
+  const el = document.getElementById(`group-${id}`);
+  if (el) el.remove();
 }
 
 // Parse the CSV-style input into headcounts and salary steps
@@ -47,8 +52,6 @@ function parseCSVTriples(text) {
     const parts = line.split('\t');
     if (parts.length === 3) {
       const headcount = parseFloat(parts[0].trim());
-
-      // ✅ Clean $ and commas from BOTH union and mgmt steps
       const unionStep = parseFloat(parts[1].trim().replace(/[\$,]/g, ''));
       const mgmtStep  = parseFloat(parts[2].trim().replace(/[\$,]/g, ''));
 
@@ -63,7 +66,7 @@ function parseCSVTriples(text) {
   return { headcounts, unionSteps, mgmtSteps };
 }
 
-// Calculate the weighted cost for a given set of steps
+// Weighted cost for a set of steps
 function weightedCost(steps, headcounts) {
   return steps.reduce((sum, step, i) => sum + step * (headcounts[i] || 0), 0);
 }
@@ -79,7 +82,20 @@ function calculateProposalCosts(steps, headcounts, raise, years) {
   return totals;
 }
 
-// Sum up an array of numbers
+// NEW: calculate per-step salary progression for ONE person per step
+function calculatePerStepProgression(steps, raisePct, years) {
+  const out = steps.map(start => {
+    let vals = [];
+    let current = start;
+    for (let y = 0; y < years; y++) {
+      vals.push(current);
+      current = current * (1 + raisePct / 100);
+    }
+    return vals;
+  });
+  return out;
+}
+
 function sum(array) {
   return array.reduce((acc, val) => acc + val, 0);
 }
@@ -99,7 +115,6 @@ function exportCSV() {
   link.click();
 }
 
-// Calculate the results for all groups
 function calculateCosts() {
   const years = parseInt(document.getElementById('contract-years').value);
   const lastRaise = parseFloat(document.getElementById('last-raise').value);
@@ -125,11 +140,15 @@ function calculateCosts() {
     const mgmt = calculateProposalCosts(mgmtSteps, headcounts, raiseMgmt, years);
     const last = calculateProposalCosts(mgmtSteps, headcounts, lastRaise, years);
 
+    // NEW: per-step individual salary growth
+    const unionPerPerson = calculatePerStepProgression(unionSteps, raiseUnion, years);
+    const mgmtPerPerson  = calculatePerStepProgression(mgmtSteps, raiseMgmt, years);
+
     unionTotals = unionTotals.map((v, i) => v + union[i]);
     mgmtTotals = mgmtTotals.map((v, i) => v + mgmt[i]);
     lastTotals = lastTotals.map((v, i) => v + last[i]);
 
-    groupResults.push({ groupName, union, mgmt, last });
+    groupResults.push({ groupName, union, mgmt, last, unionSteps, mgmtSteps, unionPerPerson, mgmtPerPerson });
   });
 
   const table = document.getElementById('resultsTable');
@@ -137,23 +156,3 @@ function calculateCosts() {
 
   groupResults.forEach(result => {
     const cumulativeUnion = sum(result.union).toFixed(2);
-    const cumulativeMgmt = sum(result.mgmt).toFixed(2);
-    const cumulativeLast = sum(result.last).toFixed(2);
-
-    table.innerHTML += `<tr><th colspan="6">${result.groupName}</th></tr>`;
-    table.innerHTML += `<tr><th>Year</th><th>Union</th><th>Mgmt</th><th>Last Contract</th><th>Union - Mgmt</th><th>Union - Last</th></tr>`;
-    
-    labels.forEach((label, i) => {
-      table.innerHTML += `
-        <tr>
-          <td>${label}</td>
-          <td>${result.union[i].toFixed(2)}</td>
-          <td>${result.mgmt[i].toFixed(2)}</td>
-          <td>${result.last[i].toFixed(2)}</td>
-          <td>${(result.union[i] - result.mgmt[i]).toFixed(2)}</td>
-          <td>${(result.union[i] - result.last[i]).toFixed(2)}</td>
-        </tr>`;
-    });
-
-    ta
-
